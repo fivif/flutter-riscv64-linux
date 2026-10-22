@@ -1,0 +1,25 @@
+#!/bin/bash
+# riscv64 buildtools shim (LCS).
+# Bianbu clang defaults to --rtlib=libgcc, which conflicts with the
+# --unwindlib=libunwind that build/config/compiler/BUILD.gn:645 injects for
+# use_flutter_cxx. Injecting --rtlib=compiler-rt at LINK time only resolves it
+# without polluting compile commands.
+#
+# LTO shim (added for the release/AOT build):
+# enable_lto=true (build/toolchain/clang.gni:12) makes release builds pass
+# -flto. Linking LLVM bitcode with bfd requires the gold plugin LLVMgold.so,
+# which Bianbu's llvm-21 does NOT ship:
+#   /usr/lib/llvm-21/lib/LLVMgold.so: cannot open shared object file
+# ld.lld handles bitcode natively, so LTO link steps are routed to lld.
+# Non-LTO links and all compile steps are unchanged (debug build unaffected).
+for a in "$@"; do
+  case "$a" in
+    -c|-E|-S|-M|-MM) exec /usr/lib/llvm-21/bin/clang "$@";;
+  esac
+done
+for a in "$@"; do
+  case "$a" in
+    -flto) exec /usr/lib/llvm-21/bin/clang "$@" --rtlib=compiler-rt -fuse-ld=lld;;
+  esac
+done
+exec /usr/lib/llvm-21/bin/clang "$@" --rtlib=compiler-rt

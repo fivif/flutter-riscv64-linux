@@ -1,0 +1,19 @@
+﻿flutter-riscv64-linux
+Copyright (c) 2026 the contributors of this repository
+
+This repository contains build scripts, patches, arguments and documentation
+for building the Flutter Engine for RISC-V 64 Linux.
+
+It does NOT contain the Flutter Engine source code. The engine is
+Copyright 2013 The Flutter Authors, licensed under BSD-3-Clause:
+  https://github.com/flutter/flutter/blob/master/LICENSE
+
+Third-party components referenced by the build (Skia, Dart, ICU, HarfBuzz,
+libcxx, etc.) carry their own licenses, as shipped by the Flutter engine.
+
+The Skia patch in patches/ is a modification of
+  skia/src/ports/SkFontMgr_fontconfig.cpp
+Copyright 2014 Google Inc., BSD-3-Clause.
+
+"Flutter" and the Flutter logo are trademarks of Google LLC. This project is
+not affiliated with or endorsed by Google.

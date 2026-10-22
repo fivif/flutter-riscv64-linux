@@ -1,0 +1,89 @@
+--- a/src/ports/SkFontMgr_fontconfig.cpp
++++ b/src/ports/SkFontMgr_fontconfig.cpp
+@@ -36,6 +36,9 @@
+ #include <array>
+ #include <cstddef>
+ #include <cstdint>
++#include <algorithm>
++#include <vector>
++
+ #include <fontconfig/fontconfig.h>
+ #include <memory>
+ #include <string.h>
+@@ -693,6 +696,56 @@
+         return false;
+     }
+ 
++    // --- RISCV64-OPT: pre-sorted pattern family values ---
++    // AnyStringMatching() re-extracts AND re-sorts the pattern's FC_FAMILY values
++    // for every single font in the system font set. After FcConfigSubstitute() the
++    // pattern can carry hundreds of family names, so on a board with ~700 fonts this
++    // dominates first-frame text shaping. Extract+sort the pattern side once, then
++    // reuse the sorted array across the whole loop. Matching semantics are identical:
++    // both sides are sorted with FcStrCmpIgnoreCase and merged for equality.
++    struct SortedFamilyNames {
++        std::vector<FcChar8*> v;
++        void reset(FcPattern* pattern, const char* object) {
++            v.clear();
++            for (int patternId = 0; patternId < 65536; ++patternId) {
++                FcChar8* s;
++                FcResult result = FcPatternGetString(pattern, object, patternId, &s);
++                if (result == FcResultNoId) break;
++                if (result == FcResultMatch) v.push_back(s);
++            }
++            std::sort(v.begin(), v.end(),
++                      [](FcChar8* a, FcChar8* b) { return FcStrCmpIgnoreCase(a, b) < 0; });
++        }
++    };
++
++    static bool AnyStringMatchingPresorted(FcPattern* font, const SortedFamilyNames& sorted,
++                                           const char* object) {
++        STArray<32, FcChar8*> fontStrings;
++        for (int patternId = 0; patternId < 65536; ++patternId) {
++            FcChar8* s;
++            FcResult result = FcPatternGetString(font, object, patternId, &s);
++            if (result == FcResultNoId) break;
++            if (result == FcResultMatch) fontStrings.push_back(s);
++        }
++        SkTQSort(fontStrings.begin(), fontStrings.end(),
++                 [](FcChar8* a, FcChar8* b) { return FcStrCmpIgnoreCase(a, b) < 0; });
++
++        FcChar8** fontString = fontStrings.begin();
++        FcChar8* const* patternString = sorted.v.data();
++        FcChar8* const* patternEnd = patternString + sorted.v.size();
++        while (fontString != fontStrings.end() && patternString != patternEnd) {
++            int cmp = FcStrCmpIgnoreCase(*fontString, *patternString);
++            if (cmp < 0) {
++                ++fontString;
++            } else if (cmp > 0) {
++                ++patternString;
++            } else {
++                return true;
++            }
++        }
++        return false;
++    }
++
+     bool FontAccessible(FcPattern* font) const {
+         // FontConfig can return fonts which are unreadable.
+         const char* filename = get_string(font, FC_FILE, nullptr);
+@@ -773,6 +826,9 @@
+         // The patterns are exactly the same except for the FC_FILE.
+         // It should be possible to collapse these patterns by normalizing.
+         static constexpr auto fcNameSet = std::to_array<FcSetName>({FcSetSystem, FcSetApplication});
++        // RISCV64-OPT: hoist pattern-side family extraction + sort out of the font loop.
++        SortedFamilyNames sortedFamilies;
++        sortedFamilies.reset(matchPattern, FC_FAMILY);
+         for (int setIndex = 0; setIndex < (int)std::size(fcNameSet); ++setIndex) {
+             // Return value of FcConfigGetFonts must not be destroyed.
+             FcFontSet* allFonts(FcConfigGetFonts(fFC, fcNameSet[setIndex]));
+@@ -782,7 +838,8 @@
+ 
+             for (int fontIndex = 0; fontIndex < allFonts->nfont; ++fontIndex) {
+                 FcPattern* font = allFonts->fonts[fontIndex];
+-                if (FontFamilyNameMatches(font, matchPattern) && FontAccessible(font)) {
++                if (AnyStringMatchingPresorted(font, sortedFamilies, FC_FAMILY) &&
++                    FontAccessible(font)) {
+                     FcFontSetAdd(matches, FcFontRenderPrepare(fFC, pattern, font));
+                 }
+             }

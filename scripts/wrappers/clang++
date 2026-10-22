@@ -1,0 +1,17 @@
+#!/bin/bash
+# riscv64 buildtools shim (LCS) — clang++ variant.
+# See the clang shim next to this file for the rationale of both injections:
+#   --rtlib=compiler-rt : avoids --unwindlib=libunwind conflict
+#   -fuse-ld=lld        : LTO link steps (lld handles LLVM bitcode natively;
+#                         bfd would need LLVMgold.so which llvm-21 lacks)
+for a in "$@"; do
+  case "$a" in
+    -c|-E|-S|-M|-MM) exec /usr/lib/llvm-21/bin/clang++ "$@";;
+  esac
+done
+for a in "$@"; do
+  case "$a" in
+    -flto) exec /usr/lib/llvm-21/bin/clang++ "$@" --rtlib=compiler-rt -fuse-ld=lld;;
+  esac
+done
+exec /usr/lib/llvm-21/bin/clang++ "$@" --rtlib=compiler-rt

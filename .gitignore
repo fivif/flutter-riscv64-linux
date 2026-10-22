@@ -1,0 +1,23 @@
+﻿# 构建产物
+out/
+build/
+*.o
+*.a
+*.so
+*.so.*
+gen_snapshot*
+impellerc
+font-subset
+dart-sdk/
+shader_lib/
+
+# 大文件
+*.zip
+*.tar.gz
+
+# 系统噪声
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+*.log
