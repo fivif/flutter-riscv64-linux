@@ -1,4 +1,4 @@
-# flutter-riscv64-linux
+﻿# flutter-riscv64-linux
 
 **从源码构建可用的 RISC-V 64 Flutter Linux 引擎** —— 构建配方、补丁、脚本、验证方法。
 
@@ -78,6 +78,10 @@ flutter build linux --release
 不需要 `--local-engine`，不需要 `--no-tree-shake-icons`。
 
 ---
+
+> ⚠️ **构建前必读**：同一时间只跑一个 ninja，并用 `-j 8` 而不是默认 16。
+> 并发构建会把 16 核 / 7.7 GiB 的板子压到 sshd 无法握手，见
+> [docs/04-并发构建的代价.md](docs/04-并发构建的代价.md)。
 
 ## 最重要的一个坑：Dart SDK 必须与引擎同版本
 
