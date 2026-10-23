@@ -1,0 +1,7 @@
+﻿Framework revision 6597889f57b4922b95b3917967f8530fcbdd9515
+Engine  revision  57d5122cd9dcfd0174ba963e61df20a328378c64
+Flutter version   3.41.0
+Channel           [user-branch]
+Build date        2026-10-21 00:41:26 +0000
+
+来源: `flutter --version` 实测输出（docs/03 有完整记录）

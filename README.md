@@ -1,4 +1,4 @@
-﻿# flutter-riscv64-linux
+# flutter-riscv64-linux
 
 **从源码构建可用的 RISC-V 64 Flutter Linux 引擎** —— 构建配方、补丁、脚本、验证方法。
 
@@ -15,16 +15,33 @@ riscv64 Linux 产物，所有 `storage.googleapis.com/.../linux-riscv64/artifact
 | | |
 |---|---|
 | ✅ 是 | 构建脚本、`args.gn`、clang shim、Skia 字体补丁、安装/验证脚本、逐条踩坑记录 |
-| ❌ 不是 | Flutter 引擎源码、预编译二进制（体积太大，见 Releases） |
+| ✅ 是 | [`pinned/`](pinned/) —— 271 个依赖的 revision 锁定 + 产物 sha256 |
+| ✅ 是 | [Releases](../../releases) —— 构建好的引擎产物（约 60 MB，解压即用） |
+| ❌ 不是 | Flutter 引擎源码（**271 个仓库、约 2 GB**，见 [docs/05](docs/05-为什么不放源码.md)） |
 | ❌ 不是 | 官方支持。Flutter 官方没有 riscv64 Linux 目标 |
 
-引擎源码来自 Flutter 官方：
+## 两条路，按需要选
+
+### 只要能用 → 下 Release
+
+到 [Releases](../../releases) 下载引擎产物，解压后跑 `scripts/05-install-artifacts.sh`。
+**不用编 92 分钟。**
+
+### 要自己编 → 走脚本 + pinned 锁版本
+
+源码来自 Flutter 官方，用 `gclient` 按 revision 拉取：
+
 ```bash
 git clone https://github.com/flutter/flutter.git
-# engine 在 engine/src/flutter，由 DEPS 拉取
+cd flutter && git checkout 6597889f57b4922b95b3917967f8530fcbdd9515
+cd engine/src && gclient sync -r 57d5122cd9dcfd0174ba963e61df20a328378c64
 ```
 
-本仓库只提供**让它在这块板子上编出来、装进去、跑起来**所需要的全部非上游内容。
+`pinned/DEPS` 里 pin 了全部 271 个依赖的确切 revision（skia、dart、icu、harfbuzz…）。
+
+**为什么源码不进仓库**：271 个仓库、约 2 GB、每个组件独立许可证、
+`DEPS` 语义是「按 revision 拉取」而不是「复制文件」。
+详述见 [docs/05-为什么不放源码.md](docs/05-为什么不放源码.md)。
 
 ---
 
@@ -41,7 +58,7 @@ git clone https://github.com/flutter/flutter.git
 
 ---
 
-## 三步上手
+## 完整流程
 
 ```bash
 # 0. 环境检查（会告诉你缺什么、哪里有坑）
@@ -52,20 +69,26 @@ ENGINE_SRC=/path/to/engine/src
 cp scripts/wrappers/clang scripts/wrappers/clang++ \
    "$ENGINE_SRC/buildtools/linux-x64/clang/bin/"
 
-# 2. 生成 + 构建（约 4500 步，1.5~2.5 小时）
+# 2. 生成 + 构建引擎（4490 步，实测 92 分钟）
 export FLUTTER_ENGINE=$ENGINE_SRC
 ./scripts/01-gen.sh    riscv64-release release
 ./scripts/02-build.sh  riscv64-release
 
-# 3. 补 Dart SDK 与 frontend_server（关键，见下）
-./scripts/03-build-dart-sdk.sh          riscv64-release
-./scripts/04-rebuild-frontend-server.sh riscv64-release
+# 3. Dart SDK + frontend_server（关键！见下一节）
+./scripts/03-build-dart-sdk.sh           riscv64-release
+./scripts/04-rebuild-frontend-server.sh  riscv64-release
 
 # 4. 装进 flutter 缓存
 ./scripts/05-install-artifacts.sh /path/to/flutter riscv64-release
 
 # 5. 核验
 ./scripts/06-verify.sh /path/to/flutter riscv64-release
+
+# 6. 锁定版本（抓 DEPS / .gclient / sha256）
+./scripts/07-pin.sh riscv64-release
+
+# 7. 打包可分发的产物（约 60 MB）
+./scripts/08-package-release.sh riscv64-release ./dist
 ```
 
 装好之后，**任何 Flutter 项目**都可以直接：
@@ -76,6 +99,20 @@ flutter build linux --release
 ```
 
 不需要 `--local-engine`，不需要 `--no-tree-shake-icons`。
+
+### 脚本一览
+
+| 脚本 | 作用 | 实测耗时 |
+|---|---|---|
+| `00-check-env.sh` | 环境检查，指出缺什么、哪里有坑 | 秒级 |
+| `01-gen.sh` | `gn gen`（**必须带 `--script-executable`**） | 1 秒 |
+| `02-build.sh` | 引擎核心 5 个产物 | **92 分钟**（4490 步） |
+| `03-build-dart-sdk.sh` | 从源码编 Dart SDK（含 snapshots） | 20~30 分钟 |
+| `04-rebuild-frontend-server.sh` | 重建 frontend_server（决定 kernel hash） | 7 分钟（383 步） |
+| `05-install-artifacts.sh` | 铺进 flutter 缓存 + 伪造 stamp | 1 分钟 |
+| `06-verify.sh` | 一致性核验（5 个 Dart 组件必须同版本） | 秒级 |
+| `07-pin.sh` | 抓版本锁定信息到 `pinned/` | 秒级 |
+| `08-package-release.sh` | 打包 60 MB 分发 tarball | 1 分钟 |
 
 ---
 

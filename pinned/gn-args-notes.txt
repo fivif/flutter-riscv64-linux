@@ -1,0 +1,27 @@
+﻿# 本仓库 args/ 下的两份文件是实测可用的完整 args.gn。
+# 这里只记录"哪些是必须的、哪些是装饰性的"，避免抄错。
+
+# ---- 必须 ----
+target_cpu = "riscv64"
+target_os  = "linux"
+is_debug   = false                 # debug 配置改为 true
+dart_runtime_mode = "release"      # debug 改为 "develop"
+flutter_runtime_mode = "release"   # debug 改为 "debug"
+flutter_prebuilt_dart_sdk = false  # 关键：false 才从源码编 Dart SDK
+use_default_linux_sysroot = false  # 关键：false 才需要 /usr/include/pci 软链
+
+# ---- 装饰性（GN 会警告 no effect，但无害）----
+use_lld = true                     # ⚠️ 本 GN 图未声明该变量，警告后忽略
+                                   #    LTO 链接实际靠 scripts/wrappers/clang++ 路由到 lld
+
+# ---- 关闭无关模块（加速）----
+angle_build_tests = false
+angle_use_wayland = false
+angle_build_all   = false
+angle_enable_vulkan = false
+angle_enable_wgpu   = false
+angle_enable_cl     = false
+angle_enable_libdrm = false
+angle_build_vulkan_system_info = false
+enable_unittests = false
+dart_include_wasm_opt = false
