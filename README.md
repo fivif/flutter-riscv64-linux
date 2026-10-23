@@ -27,7 +27,7 @@ flutter build linux --release
 
 ### 方式一：使用预编译产物
 
-从 [Releases](../../releases) 下载并安装：
+从 [Releases](https://github.com/fivif/flutter-riscv64-linux/releases) 下载并安装：
 
 ```bash
 tar xzf flutter-riscv64-sdk-min-dart3.15.0-51.0.tar.gz
