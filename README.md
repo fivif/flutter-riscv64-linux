@@ -277,7 +277,28 @@ cd $FLUTTER_ROOT && git tag -f 3.41.0
 
 ---
 
-## 已知限制
+## 验证状态
+
+### 已从零验证 ✅
+
+在干净的空 `out/` 目录上完整走了一遍，全部通过：
+
+| 项目 | 结果 |
+|---|---|
+| 干净构建 | **4490 步 / 92 分钟 / 0 失败** |
+| `gn gen` | 19632 个目标，1 秒 |
+| 引擎产物 | 6 个文件 + `shader_lib` + 26 头文件，全部生成 |
+| Dart SDK（含 13 个 snapshots） | 全部 51.0，`dart run` 正常输出 |
+| `flutter --version` | `Tools • Dart 3.15.0 (build 3.15.0-51.0.dev)`，零异常 |
+| **无参数 `flutter build linux --release`** | **exit 0，543 秒** |
+| bundle 引擎 sha256 | 与 `pinned/sdk-hashes.txt` **完全一致** |
+| 应用运行 | 窗口 400×500、3 个 isolate 就绪、`Server started (Port: 53317)`、截图 33,958 B |
+| debug kernel hash | `69672e35b9` 天然对齐 |
+
+**已发布产物**：见 [Releases](../../releases) —— 22.7 MB（引擎）/ 104.6 MB（最小 SDK）/
+182 MB（完整 SDK，分卷）。
+
+### 已知限制
 
 诚实记录，别当它完美：
 
@@ -285,11 +306,13 @@ cd $FLUTTER_ROOT && git tag -f 3.41.0
    `flutter build linux --profile` 会失败。
 2. **`analysis_server` 快照没编出来** —— 它自己在生成快照时崩
    （`Bad state: Future already completed`），与版本无关。不影响 `flutter build`，
-   但 `dart analyze` 之类可能受影响。
-3. **`dartcliruntime` 可能残留旧版本** —— 我们的子集里它的拷贝目标不一定跑到。
-   当前没用到，但严格说不是 100% 干净。
-4. **只用过一个应用验证**（LocalSend GUI）。没有跑 Flutter 自己的测试套件。
-5. **显示验证在 Xvfb + llvmpipe 下完成**。真实 Xorg/Wayland 下的表现未验证。
+   但 `dart analyze` 可能受影响。
+3. **只用过一个应用验证**（LocalSend GUI）。没有跑 Flutter 自己的测试套件。
+4. **显示验证在 Xvfb + llvmpipe 下完成**。真实 Xorg/Wayland 下的表现未验证
+   （日志里的 `DRI3 error` 是显示环境问题，不影响构建）。
+5. **`dart-sdk/bin/resources/` 容易漏** —— 少了 `devtools/` 整个目录，
+   `flutter --version` 会抛 `Could not find directory .../resources/devtools`。
+   本仓库的 `02-build.sh` + `03-build-dart-sdk.sh` 已覆盖，但自己手搓时容易忘。
 
 ---
 
